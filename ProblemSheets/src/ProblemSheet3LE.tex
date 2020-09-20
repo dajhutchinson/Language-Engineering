@@ -1,0 +1,426 @@
+\documentclass[11pt,a4paper]{article}
+
+\usepackage[margin=1in, paperwidth=8.3in, paperheight=11.7in]{geometry}
+\usepackage{amsfonts}
+\usepackage{amsmath}
+\usepackage{enumerate}
+\usepackage{enumitem}
+\usepackage{fancyhdr}
+\usepackage{listings}
+\usepackage{stmaryrd}
+\usepackage[table]{xcolor}
+
+\begin{document}
+
+\pagestyle{fancy}
+\setlength\parindent{0pt}
+\allowdisplaybreaks
+
+% Counters
+\newcounter{question}
+\newcounter{qpart}[question]
+\newcounter{qqpart}[qpart]
+
+% commands
+\newcommand{\nats}{\mathbb{N}}
+\newcommand{\reals}{\mathbb{r}}
+\newcommand{\newquestion} {\stepcounter{question}}
+\newcommand{\newqpart} {\stepcounter{qpart}}
+\newcommand{\newqqpart} {\stepcounter{qqpart}}
+\newcommand{\question}[2] {\newquestion \ifquestions \textbf{Question \arabic{question} - #1}\\ #2 \fi}
+\newcommand{\qpart}[1] {\newqpart \ifquestions \textbf{Question \arabic{question}.\arabic{qpart}}\\ #1 \\ \fi}
+\newcommand{\qqpart}[1] {\newqqpart \ifquestions \textbf{Question \arabic{question}.\arabic{qpart}.\arabic{qqpart}}\\ #1\\ \fi}
+\newcommand{\solution}[1] {\ifsolutions\textbf{My Solution \arabic{question}}\\ #1\\ \fi}
+\newcommand{\spart} {\ifsolutions\textbf{My Solution \arabic{question}.\arabic{qpart}} \fi}
+\newcommand{\sspart} {\ifsolutions\textbf{My Solution \arabic{question}.\arabic{qpart}.\arabic{qqpart}} \fi}
+\newcommand{\doubleplus} {+\kern-1.3ex+\kern0.8ex}
+\renewcommand{\headrulewidth}{0pt}
+
+% enviroments
+\lstnewenvironment{code}
+  {\lstset{mathescape=true,xleftmargin=.1\textwidth}}
+  {}
+
+% if
+\newif\ifquestions
+\questionstrue
+%\questionsfalse
+\newif\ifsolutions
+\solutionstrue
+%\solutionsfalse
+
+% Cover page title
+\title{Language Engineering - Problem Sheet 3}
+\author{Dom Hutchinson}
+\date{\today}
+\maketitle
+
+% Header
+\fancyhead[L]{Dom Hutchinson}
+\fancyhead[C]{Language Engineering - Problem Sheet 3}
+\fancyhead[R]{\today}
+
+\question{Simple Expressions}{
+Consider the following simple expression language consisting of just values and additions.
+}
+\begin{code}
+data Expr = Val Int
+          | Add Expr Expr
+\end{code}
+
+\qpart{
+Write a recursive funciton $eval::Expr\to Int$ which evaluates these arithmetic expressions.
+}
+
+\spart
+\begin{code}
+eval :: Expr $\to$ Int
+eval (Val n) = n
+eval (Add x y) = (eval x) + (eval y)
+\end{code}
+
+\qpart{}
+\qqpart{
+Define the datatype $Fix\ f$ with a single constructor called $In::f\ (Fix\ f)\to Fix\ f$. Also define $inop::Fix\ f\to f\ (Fix\ f)$ which unwraps one layer of structure.
+}
+
+\sspart
+\begin{code}
+data Fix f = In (f (Fix f))
+
+inop :: Fix f -> f (Fix f)
+inop (In x) = x
+\end{code}
+
+\qqpart{
+Define a new datatype $ExprF\ k$ which mirrors the constructors of $Expr$ except that the parameter $k$ replaces recursive occurences of $Expr$.
+}
+
+\sspart
+\begin{code}
+data ExprF k = ValF Int
+             | AddF k k
+\end{code}
+
+\qqpart{
+Let $Expr'$ be a type alias for $Fix\ ExprF$. Write down three values of type $Expr'$.
+}
+
+\sspart
+\begin{code}
+ex1 = In(ValF 1)
+ex2 = In(ValF 4)
+ex3 = In(AddF (In (ValF 1)) (In (ValF 2)))
+\end{code}
+
+\qqpart{
+Define the recursive function $fromExpr::Expr\to Expr'$ that converts values from $Expr$ to $Expr'$.
+}
+
+\sspart
+\begin{code}
+fromExpr :: Expr -> (Fix ExprF)
+fromExpr (Val n) = In (ValF n)
+fromExpr (Add x y) = In(AddF (fromExpr x) (fromExpr y))
+\end{code}
+
+\qpart{}
+\qqpart{
+Define a function $cata::Functor\ f\Rightarrow(f\ a\to a)\to Fix\ f\to a$ which reduces the $Fix\ f$ structure into a single value of type $a$ using the provided algebra of type $f\ a\to a$.
+}
+
+\sspart
+\begin{code}
+cata :: Functor f => (f a -> a) -> Fix f -> a
+cata alg (In x) = alg (fmap (cata alg) x)
+\end{code}
+
+\qqpart{
+Give a $Functor$ instance for your $ExprF$ type.
+}
+
+\sspart{
+\begin{code}
+instance Functor ExprF
+  where
+    fmap f (ValF n) = ValF n
+    fmap f (AddF x y) = AddF (f x) (f y)
+\end{code}
+
+\qqpart{
+Write a function $eval'::Expr'\to Int$ using the function $cata$ and an appropriate algebra.
+}
+
+\sspart
+\begin{code}
+eval' :: Fix ExprF-> Int
+eval' = cata alg
+  where
+    alg :: ExprF Int -> Int
+    alg (ValF n) = n
+    alg (AddF x y) = x+y
+\end{code}
+
+\qqpart{
+Discuss the advantages of using $cata$ to define the evaluation function for the $Expr'$ type versus the original $eval$ for $Expr$.
+}
+
+\sspart\\
+TODO\\
+
+\qpart{}
+\qqpart{
+Define the function $toExpr::Expr'\to Expr$ that converts values from $Expr'$ to $Expr$. This must not be a recursive function.
+}
+
+\sspart
+\begin{code}
+toExpr :: Fix ExprF -> Expr
+toExpr = cata alg
+  where
+    alg :: ExprF (Expr) -> Expr
+    alg (ValF n) = Val n
+    alg (AddF x y) = Add x y
+\end{code}
+
+\qqpart{
+An isomorphism between two types $A$ and $B$, written $A\cong B$, exists when there are functions $f:A\to B$ and $g:B\to A$ such that $f\circ g=id$ and $g\circ f=id$. Prove that $Expr\cong Expr'$.
+}
+
+\sspart
+\begin{code}
+TODO
+\end{code}
+
+\question{Composing Expressions}{
+It is possible to take the coproduct of functors $f$ and $g$ as given by the following type. This is a type operator that we have declared ot be right associative with precedence $5$.
+}
+\begin{code}
+data (f :+: g) a = L (f a)
+                 | R (g a)
+infixr 5 :+:
+\end{code}
+
+\qpart{
+Give the $Functor$ instance for $f:+:g$ under teh assumption that $f$ and $g$ are functors.
+}
+
+\spart
+\begin{code}
+instance (Functor f, Functor g) => Functor (f:+:g)
+  where
+    fmap f (L x) = L (fmap f x)
+    fmap f (R y) = R (fmap f y)
+\end{code}
+
+\qpart{
+The datatpe $ExprF$ you defined in the last section can be decomposed into two parts: $ValF\ k$ and $AddF\ k$ which represent the abstract syntax for values and addition respectively.
+}
+
+\qqpart{
+Give the definitions of both $ValF$ and $AddF$.
+}
+
+\sspart
+\begin{code}
+  data ValF k = ValF k
+  data AddF k = AddF k k
+\end{code}
+
+\qqpart{
+Give $Functor$ instances for both $ValF$ and $AddF$.
+}
+
+\sspart
+\begin{code}
+instance Functor ValF
+  where
+    fmap f (ValF n) = ValF (f n)
+
+instance Functor AddF
+  where
+    fmap f (AddF x y) = AddF (f x) (f y)
+\end{code}
+
+\qpart{
+Write a new datatype $SubF\ k$ which represents the abstract syntax for subtraction. Furthermore, write a $Functor$ instance for $SubF$.
+}
+
+\spart
+\begin{code}
+data SubF k = SubF k k
+
+instance Functor SubF
+  where
+    fmap f (SubF x y) = SubF (f x) (f y)
+\end{code}
+
+\qpart{
+Write a function $evalAddSub::Fix(ValF:+:AddF:+:SubF)\to Int$ using $cata$ which can evaluate arithmetric expressions containing values, additions and subtractions.\\
+\textit{Hint} - Look at the associativity of the $:+:$ operator.
+}
+
+\spart
+\begin{code}
+($\nabla$) :: (f a -> a) -> (g a -> a) -> (f :+: g) a -> a
+(falg $\nabla$ galg) (L x) = falg x
+(falg $\nabla$ galg) (R x) = galg x
+
+
+val :: ValF Int -> Int
+val (ValF x) = x
+
+add :: AddF Int -> Int
+add (AddF x y) = x + y
+
+sub :: SubF Int -> Int
+sub (SubF x y) = x - y
+
+evalAddSub :: Fix (ValF :+: AddF :+: SubF) -> Int
+evalAddSub = cata (val $\nabla$ (add $\nabla$ sub))
+\end{code}
+
+\qpart{
+Explain why this method of composing datatypes will become more cumbersome as more datatypes are added into the composition.
+}
+
+\spart\\
+TODO\\
+
+\question{Classy Algebras}{
+Consider the new typeclass $Alg\ f\ a$ which contains the operation of an algebra, $alg::f\ a\to a$, where $f$ is a functor and $a$ is the carrier.\\
+This class requires multiple parameters.
+}
+\begin{code}
+class Functor f $\Rightarrow$ Alg f align
+  where
+    alg :: f a $\to$ a
+\end{code}
+
+\qpart{
+Give an instance for $Alg$ for $ValF$ with carrier $Int$.
+}
+
+\spart
+\begin{code}
+instance Alg ValF Int
+  where
+    -- alg :: ValF Int -> Int
+    alg (ValF x) = x
+\end{code}
+
+\qpart{
+Give an instance for $Alg$ for $AddF$ with carrier $Int$.
+}
+
+\spart
+\begin{code}
+instance Alg AddF Int
+  where
+    alg (AddF x y) = x + y
+\end{code}
+
+\qpart{
+Give an instance for $Alg$ for $SubF$ with carrier $Int$.
+}
+
+\spart
+\begin{code}
+instance Alg SubF Int
+  where
+    alg (SubF x y) = x - y
+\end{code}
+
+\qpart{
+Give the instance for $Alg\ (f:+:g)\ a$, assuming that instances of $Alg\ f\ a$ and $Alg\ g\ a$ exist.
+\textit{Hint} - Use class constraints on your instance.
+}
+
+\spart{
+\begin{code}
+instance (Alg f a, Alg g a) => Alg (f :+: g) a
+  where
+    -- alg :: (f :+: g) a -> a
+    alg (L x) = alg x
+    alg (R y) = alg y
+\end{code}
+
+\qpart{
+Now give a new definition for $evalAddSub::Fix\ (ValF:+:AddF:+:SubF)\to Int$ using $cata$ and an appropriate algebra.\\
+\textit{Hint} - Your answer should use the algebra from the $Alg$ class.
+}
+
+\spart
+\begin{code}
+evalAddSub' :: Fix (ValF :+: AddF :+: SubF) -> Int
+evalAddSub' = cata alg
+\end{code}
+
+\qpart{
+Define a function $cati::Alg\ f\ a\Rightarrow Fix\ f\to a$ which performs teh same role as $cata$, but using the $alg$ given by $Alg\ g\ a$ instance.
+}
+
+\spart
+\begin{code}
+cati :: Alg f a => Fix f -> a
+cati (In x) = alg (fmap cati x)
+\end{code}
+
+\qpart{}
+\qqpart{
+Extend the expression language you have built so far by including a new datatype $MulF$.
+}
+
+\sspart
+\begin{code}
+data MulF k = MulF k k
+
+instance Functor MulF
+  where
+    fmap f (MulF x y) = MulF (f x) (f y)
+
+mul :: MulF Int -> Int
+mul (MulF x y) = x * y
+\end{code}
+
+\qqpart{
+Define an appropriate algebra with carrier $Int$ that performs the multiplication.
+}
+
+\sspart
+\begin{code}
+instance Alg MulF Int
+  where
+    alg (MulF x y) = x * y
+\end{code}
+
+\qqpart{
+Redefine $Expr$ to be a synonym for the expression language that includes multiplication.
+}
+
+\sspart
+\begin{code}
+type ExprF = Fix (ValF :+: AddF :+: MulF :+: SubF)
+\end{code}
+
+\qqpart{
+Use $cati$ to define a function $eval :: Expr\to Int$ that evaluates expressions.
+}
+
+\sspart
+\begin{code}
+eval :: ExprF -> Int
+eval = cati
+\end{code}
+
+\qpart{
+Without changing any previous code, write a function $depth::Expr\to Int$ which returns the depth of the deepest node in an expression.\\
+\textit{Hint} - Use a newtype for Int to provide a specialisation carrier.
+}
+
+\spart
+\begin{code}
+TODO
+\end{code}
+
+\end{document}

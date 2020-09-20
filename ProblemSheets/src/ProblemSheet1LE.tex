@@ -1,0 +1,211 @@
+\documentclass[11pt,a4paper]{article}
+
+\usepackage[margin=1in, paperwidth=8.3in, paperheight=11.7in]{geometry}
+\usepackage{amsfonts}
+\usepackage{amsmath}
+\usepackage{enumerate}
+\usepackage{enumitem}
+\usepackage{fancyhdr}
+\usepackage{listings}
+\usepackage{stmaryrd}
+
+\begin{document}
+
+\pagestyle{fancy}
+\setlength\parindent{0pt}
+\allowdisplaybreaks
+
+% Counters
+\newcounter{question}
+\newcounter{qpart}[question]
+\newcounter{spart}[question]
+
+% commands
+\newcommand{\nats}{\mathbb{N}}
+\newcommand{\newquestion} {\stepcounter{question}}
+\newcommand{\newqpart} {\stepcounter{qpart}}
+\newcommand{\newspart} {\stepcounter{spart}}
+\newcommand{\question}[2] {\newquestion \ifquestions \textbf{Question 1.\arabic{question} - #1}\\ #2\\ \fi}
+\newcommand{\qpart}[1] {\newqpart \ifquestions \textbf{Question 1.\arabic{question}.\arabic{qpart}}\\ #1\\ \fi}
+\newcommand{\solution}[1] {\ifsolutions\textbf{My Solution \arabic{question}}\\ #1\\ \fi}
+\newcommand{\spart}[1] {\newspart\ifsolutions\textbf{My Solution \arabic{question}.\arabic{spart}}\\ #1\\ \fi}
+\newcommand{\codesol} {\newspart\ifsolutions\textbf{My Solution \arabic{question}.\arabic{spart}}\fi}
+
+\newcommand{\doubleplus} {+\kern-1.3ex+\kern0.8ex}
+\renewcommand{\headrulewidth}{0pt}
+
+% enviroments
+\lstnewenvironment{code}
+  {\lstset{mathescape=true}}
+  {}
+
+
+% if
+\newif\ifquestions
+\questionstrue
+%\questionsfalse
+\newif\ifsolutions
+\solutionstrue
+%\solutionsfalse
+
+% Cover page title
+\title{Language Engineering - Problem Sheet 1}
+\author{Dom Hutchinson}
+\date{\today}
+\maketitle
+
+% Header
+\fancyhead[L]{Dom Hutchinson}
+\fancyhead[C]{Language Engineering - Problem Sheet 1}
+\fancyhead[R]{\today}
+
+\question{Robot}{
+We have a very basic turtle robot which can move forward a specific amount (as an \textit{Int}), rotate left and right $90^o$ as well as stop.}
+
+\qpart{
+Design a recursive data structure (without using lists) which encodes the basic \textit{Robot}. It should have four data constructors relating to the different operation is can do.}
+
+\codesol
+\ifsolutions
+\begin{code}
+data Robot = Forward Int Robot
+           | LeftTurn Robot
+           | RightTurn Robot
+           | Stop
+\end{code}
+\fi
+
+\qpart{
+Write a function which calculates the total distance travelled by the robot, it should have the type
+$$distTrav\ ::\ Robot \to Int$$}
+
+\codesol
+\ifsolutions
+\begin{code}
+  distTrav (Forward n r) = n + distTrav r
+  distTrav (LeftTurn r)  = distTrav r
+  distTrav (RightTurn r) = distTrav r
+  distTrav (Stop)        = 0
+\end{code}
+\fi
+
+\qpart{
+Design a function that calculates the distance travelled in the direction that the robot was first facing.}
+
+\codesol
+\ifsolutions
+\begin{code}
+distTravForward :: Int $\to$ Robot $\to$ Int
+distTravForward 0 (Forward n r) = n + distTravForward 0 r
+distTravForward d (Forward n r) = distTravForward d r
+distTravForward d (LeftTurn r) = distTravForward d r
+distTravForward d (RightTurn r) = distTravForward d r
+distTravForward _ (Stop r) = 0
+
+distTrav :: Robot $\to$ Int
+disTrav r = distTravForward 0 r
+\end{code}
+\fi
+
+\qpart{
+Design a function that calculates the distance the robot ends up away from its starting position, in a straight line, with the output as a \textit{Float}.}
+
+\codesol
+\ifsolutions
+\begin{code}
+distTrav :: Robot $\to$ Float
+distTrav r = sqrt(fromIntegral(x*x) + fromIntegral(y*y))
+  where
+    y = distTravForward 0 r
+    x = distTravForward 1 r
+\end{code}
+\fi
+
+\newquestion \ifquestions \textbf{Question \arabic{question} - Cooking Master}{
+We will attempt to model a basic set of recipes. However, to make life easier we shall initally only include potatoes. This will be done using a shallow embedding, where the semantic output will be the properties of the potatoes:
+\begin{enumerate}[label=\roman*)]
+  \item Time Taken : The time it takes, as an \textit{Int}, to prepare the potato;
+  \item Weight : The weight of potatoes prepared, as an \textit{Int};
+  \item Cooked : Whether the potatoes have been cooked, as a \textit{Bool};
+  \item Description : Information about the potatoes as a \textit{String}.
+\end{enumerate}
+}
+\fi
+
+\qpart{
+Create a value encoding a single potatoe, with the below type, which represents the various semantic outputs of a potato dish.
+$$potatoe :: (Int,\ Int,\ Bool,\ String)$$
+The data type $(Int,\ Int,\ Bool,\ String)$ in this case relates directly to $(time\ taken,\ weight,\ cooked,\ description)$, and \textit{potatoe} will encode a single potato into this semantics. This means that we would assume the time taken to be nothing, we will only have one potato with weight 3, it won't be cooked and the only description we can given will be \textit{"potato"}.}
+
+\codesol
+\ifsolutions
+\begin{code}
+potato = (0, 3, False, "potato")
+\end{code}
+\fi
+
+\newqpart \ifquestions \textbf{Question \arabic{question}.\arabic{qpart}}\\
+Create functions for each of the following different culinary experises exercised on potatoes. They will need to map the current semantics to an update semantics.
+$$ce :: (Int,\ Int,\ Bool,\ String) \to (Int,\ Int,\ Bool,\ String)$$
+\begin{enumerate}[label=\roman*)]
+  \item peel (takes 2 mins for ech potato and adds \textit{"peeled"} to the description)
+  \item roast (takes 70 mins, makes them cooked and adds \textit{"roasted"} to the description)
+  \item boil em (takes 25 mins, makes them cooked and adds \textit{"boiled"} to the description)
+  \item mash em (takes 1 min per potato and adds \textit{"mashed"} to the description)
+  \item stick em in a stew (takes 120 mins, makes them cooked and adds \textit{"stewed"} to the description)
+\end{enumerate}
+\fi
+
+\codesol
+\ifsolutions
+\begin{code}
+peel (t, w, c, s)               = (t+(2*w), w, c, "peeled " $\doubleplus$ s)
+roast (t, w, c, s)              = (t+70, w, True, "roasted " $\doubleplus$ s)
+boil em (t, w, c, s)            = (t+25, w, True, "boiled " $\doubleplus$ s)
+mash em (t, w, c, s)            = (t+w, w, c, "mashed " $\doubleplus$ s)
+stick em in a stew (t, w, c, s) = (t+120, w, True, "stewed " $\doubleplus$ s)
+\end{code}
+\fi
+
+\qpart{
+Create a function that lets you mix two sets of potatoes, this should combine the time taken and weights, become uncooked if either is uncooked and combine the two descriptions. The type signature is given below:
+$$mix :: (Int,\ Int,\ Bool,\ String) \to (Int,\ Int,\ Bool,\ String) \to (Int,\ Int,\ Bool,\ String)$$}
+
+\codesol
+\ifsolutions
+\begin{code}
+mix (t1, w1, False, s1) (t2, w2, _, s2) = (t1+t2, w1+w2, False, s1 $\doubleplus$ " "  $\doubleplus$ s2)
+mix (t1, w1, _, s1) (t2, w2, False, s2) = (t1+t2, w1+w2, False, s1 $\doubleplus$ " "  $\doubleplus$ s2)
+mix (t1, w1, _, s1) (t2, w2, _, s2)     = (t1+t2, w1+w2, True, s1 $\doubleplus$ " "  $\doubleplus$ s2)
+\end{code}
+\fi
+
+\qpart{
+Now allow for your next two favourite root vegetables to be added.}
+
+\codesol
+\ifsolutions
+\begin{code}
+carrot  = (0, 1, False, "carrot")
+parsnip = (0, 1, False, "parsnip")
+
+addcarrot (t, w, c, s)  = mix (t, w, c, s) carrot
+addparsnip (t, w, c, s) = mix (t, w, c, s) parsnip
+\end{code}
+\fi
+
+\question{Languages}{}
+
+\qpart{
+What is the difference betwen a GPL and a DSL?}
+
+\solution{
+A general purpose language is Turing Complete so can be used to develop programs in any domain, whereas a domain specific language is not. This means GPLs require their own support systems, while DSLs can make usr of these support systems and so don't need to fully develop their own.}
+
+\qpart{
+What programming methods should be used in shallow embeddings and deep embeddings when dealing with dependent interpretation?}
+
+\solution{
+When using multiple semantics in shallow embeddings you provide all the semantics as a tuple and providing their interpretations with them. In deep embeddings you define a new function for each semantics.}
+
+\end{document}

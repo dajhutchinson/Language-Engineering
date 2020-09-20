@@ -1,0 +1,444 @@
+\documentclass[11pt,a4paper]{article}
+
+\usepackage[margin=1in, paperwidth=8.3in, paperheight=11.7in]{geometry}
+\usepackage{amsfonts}
+\usepackage{amsmath}
+\usepackage{enumerate}
+\usepackage{enumitem}
+\usepackage{fancyhdr}
+\usepackage{listings}
+\usepackage{stmaryrd}
+\usepackage[table]{xcolor}
+
+\begin{document}
+
+\pagestyle{fancy}
+\setlength\parindent{0pt}
+\allowdisplaybreaks
+
+% Counters
+\newcounter{question}
+\newcounter{qpart}[question]
+\newcounter{spart}[question]
+
+% commands
+\newcommand{\nats}{\mathbb{N}}
+\newcommand{\newquestion} {\stepcounter{question}}
+\newcommand{\newqpart} {\stepcounter{qpart}}
+\newcommand{\newspart} {\stepcounter{spart}}
+\newcommand{\question}[2] {\newquestion \ifquestions \textbf{Question 1.\arabic{question} - #1}\\ #2\\ \fi}
+\newcommand{\qpart}[1] {\newqpart \ifquestions \textbf{Question 1.\arabic{question}.\arabic{qpart}}\\ #1\\ \fi}
+\newcommand{\solution}[1] {\ifsolutions\textbf{My Solution \arabic{question}}\\ #1\\ \fi}
+\newcommand{\spart}[1] {\newspart\ifsolutions\textbf{My Solution \arabic{question}.\arabic{spart}}\\ #1\\ \fi}
+\newcommand{\codesol} {\newspart\ifsolutions\textbf{My Solution \arabic{question}.\arabic{spart}}\fi}
+
+\newcommand{\doubleplus} {+\kern-1.3ex+\kern0.8ex}
+\renewcommand{\headrulewidth}{0pt}
+
+% enviroments
+\lstnewenvironment{code}
+  {\lstset{mathescape=true}}
+  {}
+
+% if
+\newif\ifquestions
+\questionstrue
+%\questionsfalse
+\newif\ifsolutions
+\solutionstrue
+%\solutionsfalse
+
+% Cover page title
+\title{Language Engineering - Problem Sheet 2}
+\author{Dom Hutchinson}
+\date{\today}
+\maketitle
+
+% Header
+\fancyhead[L]{Dom Hutchinson}
+\fancyhead[C]{Language Engineering - Problem Sheet 2}
+\fancyhead[R]{\today}
+
+\question{Introduction}{
+Consider a domain-specific language for directed graphs. A \textit{vertex} is any natural number. An \textit{edge} consists
+of a \textit{source} and a \textit{target} vertex. A \textit{graph} is a set of vertices $V$ and a bag of edges $E$, where all the vertices
+in the edges $E$ are contained in $V$ . A bag (sometimes called a multiset) is a structure like set except that
+duplicate elements are allowed.\\
+Graphs can be composed out of four operations, empty, vertex , connect, and overlay, described as follows.
+\begin{enumerate}[label=-]
+  \item $empty :: Graph$ where empty is a graph that contains no vertices and no edges.
+  \item $vertex :: Int → Graph$, where vertex v is a graph containing the vertex v, and no edges.
+  \item $overlay :: Graph → Graph → Graph$, where overlay x y is a graph whose vertices are the union of the
+vertices in x and the vertices in y, and whose edges are the edges in x followed by the edges in y.
+  \item $connect :: Graph → Graph → Graph$, where the vertices in connect x y are all those in overlay x y,
+and the edges are the edges in overlay x y followed by an edge from each vertex in x to each vertex in
+y.
+\end{enumerate}
+Together, these combinators make it possible to express all kinds of graph structures.
+}
+
+\question{Deep Embedding} {
+A deep embedding uses a datatype to represent a domain-specific language, where each constructor of the
+datatype corresponds to an operation. These constructors are called core constructors of the language.
+}
+
+\qpart{
+Define a datatype $Graph$ that encodes a deep embedding of the graph language. Introduce a core
+constructor for each of the four operations.
+}
+
+\codesol
+\ifsolutions
+\begin{code}
+data Graph = Empty
+           | Vertex Int
+           | Overlay Graph Graph
+           | Connect Graph Graph
+\end{code}
+\fi
+
+\qpart{
+Define a function $vertices :: Graph \to [Int]$, where vertices g is a list of the vertices in the graph g.
+}
+
+\codesol
+\ifsolutions
+\begin{code}
+vertices :: Graph -> [Int]
+vertices (Empty)         = []
+vertices (Vertex n)      = [n]
+vertices (Overlay g1 g2) = nub ((vertices g1) ++ (vertices g2))
+vertices (Connect g1 g2) = nub ((vertices g1) ++ (vertices g2))
+\end{code}
+\fi
+
+\qpart{
+Define a function $edges :: Graph \to Int$, where edges $g$ is the number of edges in the graph $g$. Hint: You
+may need to use your vertices function.
+}
+
+\codesol
+\ifsolutions
+\begin{code}
+edges :: Graph -> Int
+edges (Empty)         = 0
+edges (Vertex n)      = 0
+edges (Overlay g1 g2) = (edges g1) + (edges g2)
+edges (Connect g1 g2) = (edges g1) + (edges g2)
+                      + (length(vertices g1) * length(vertices g2))
+\end{code}
+\fi
+
+\qpart{
+Define a function $roots :: Graph \to [Int]$, where roots $g$ is a list of the roots of the graph $g$. A root of a
+graph $g$ is a vertex of $g$ which does not appear as the target of any edge in $g$.
+}
+
+\codesol
+\ifsolutions
+\begin{code}
+roots :: Graph -> [Int]
+roots (Empty)         = []
+roots (Vertex n)      = [n]
+roots (Overlay g1 g2) = nub (removeAll (intersect (vertices g1) (vertices g2))
+                        (nub ((roots g1) ++ (roots g2))))
+                        ++(intersect (roots g1) (roots g2))
+roots (Connect g1 g2) = removeAll (intersect (vertices g1) (vertices g2))
+                        (roots g1)
+
+- - removes given element from list
+remove :: Int -> [Int] -> [Int]
+remove i [] = []
+remove i (x:xs)
+  | i == x    = remove i xs
+  | otherwise = x : (remove i xs)
+
+- - remove list of elements from list
+removeAll :: [Int] -> [Int] -> [Int]
+removeAll [] ys = ys
+removeAll (x:xs) ys = removeAll xs (remove x ys)
+\end{code}
+\fi
+
+\question{Shallow Embedding}{}
+
+\qpart{
+Provide a shallow embedding that produces the same semantics as \textit{vertices} by redefining an appropriate type for \textit{Graph}, and defining the behaviour of \textit{empty}, \textit{vertex} , \textit{overlay}, and \textit{connect}.
+}
+
+\codesol
+\ifsolutions
+\begin{code}
+type Vertices = [Int]
+type Graph' = Vertices
+
+empty :: Graph
+empty = []
+
+vertex :: Int -> Graph
+vertex n = [n]
+
+overlay :: Graph -> Graph -> Graph
+overlay g1 g2 = nub (g1++g2)
+
+connect :: Graph -> Graph -> Graph
+connect g1 g2 = nub (g1++g2)
+\end{code}
+\fi
+
+\qpart{
+Redefine \textit{Graph} again, as well as all the operations, to produce the same semantics as \textit{edges}. Hint: Your semantic domain should be a pair of values, one containing the information for \textit{vertices}, and the other for \textit{edges}.
+}
+
+\codesol
+\ifsolutions
+\begin{code}
+type Edges = Int
+type Graph = (Edges, Vertices)
+
+empty :: Graph
+empty = (0,[])
+
+vertex :: Int -> Graph
+vertex n = (0, [n])
+
+overlay :: Graph -> Graph -> Graph
+overlay (e1, v1) (e2,v2) = (e1+e2, nub (v1++v2))
+
+connect :: Graph -> Graph -> Graph
+connect (e1, v1) (e2, v2) = (e1+e2+(length v1 * length v2), nub(v1++v2))
+\end{code}
+\fi
+
+\qpart{
+Discuss why the shallow definition of \textit{edges} more efficient than the deep definition of \textit{edges}.
+}
+
+\spart{
+Using the shallow definition we don't need to recalculate the vertices of a graph each time we want to referrence it.
+}
+
+\question{Classy Embedding}{
+Instead of redefining \textit{Graph} for each semantics, it is better to provide a type class that captures all the
+shallow operations, and use instances to provide each of the different semantics.
+}
+
+\qpart{
+Define an appropriate type class called \textit{Graphy}, and show how the semantics of \textit{vertices} and \textit{edges} can be given using new types called \textit{Vertices} and \textit{Edges} respectively.
+}
+
+\codesol
+\ifsolutions
+\begin{code}
+  class Graphy a where
+    empty  :: a
+    vertex  :: Int -> a
+    overlay  :: a -> a -> a
+    connect  :: a -> a -> a
+\end{code}
+\fi
+
+\qpart{
+Provide an instance of your type class that allows a semantics of the shallow embedding to be the deep
+embedding. Hint: this is the instance \textit{Graphy Graph}.
+}
+
+\codesol
+\ifsolutions
+\begin{code}
+instance Graphy Vertices where
+  empty = Vertices []
+  vertex x = Vertices [x]
+  overlay (Vertices g1) (Vertices g2) = Vertices (nub (g1++g2))
+  connect (Vertices g1) (Vertices g2) = Vertices (nub (g1++g2))
+
+instance Graphy Edges where
+  empty = Edges (0,[])
+  vertex x = Edges (0,[x])
+  overlay (Edges (e1,v1)) (Edges (e2,v2)) = Edges (e1+e2, nub(v1++v2))
+  connect (Edges (e1,v1)) (Edges (e2,v2)) = Edges (e1+e2+(length v1 * length v2), nub(v1++v2))
+
+instance Graphy Graph where
+  empty = Empty
+  vertex x = Vertex x
+  overlay g1 g2 = Overlay g1 g2
+  connect g1 g2 = Connect g1 g2
+\end{code}
+\fi
+
+\question{Smart Constructors}{
+A \textit{smart constructor} is a function that provides new operations which are defined in terms of existing ones.
+}
+
+\qpart{
+Extend the language with a new smart constructor called $ring :: Graphy\ graph \to [Int] \to graph$ which
+produces a graph where all the elements in the list are converted into vertices and connected into a
+complete cycle connecting each element to the next, and the last to the first.
+}
+
+\codesol
+\ifsolutions
+\begin{code}
+TODO
+\end{code}
+\fi
+
+\qpart{
+Instead of defining this function in terms of existing operations, consider the implications of adding a
+new core constructor \textit{Ring} to the \textit{Graph} data type.\\
+a) Outline the code that needs to be changed when adding a core constructor rather than a smart
+constructor.\\
+b) Explain the benefits of using smart constructors over core constructors when new semantic functions
+are added to a given language.\\
+c) Explain why using core constructors can potentially lead to more efficient implementations.
+}
+
+\spart{
+TODO
+}
+
+\question{Comparing Approaches}{}
+
+\qpart{
+Discuss the changes required in order to add a new semantics of a deep embedding.
+}
+
+\spart{
+To add a semantics to a deep embedding only requires the definition of a new function.
+}
+
+\qpart{
+Discuss the changes required in order to add a new operation to a deep embedding.
+}
+
+\spart{
+To add a new operation requires the data types to be updated and all functions which use these datatypes to be updated as well.
+}
+
+\qpart{
+Discuss the changes required in order to add a new semantics of a shallow embedding.
+}
+
+\spart{
+To add a new semantic to shallow embedding requires all functions to be redefined, or updated to now calculate a tuple output which includes the new semantics.
+}
+
+\qpart{
+Discuss the changes required in order to add a new operation to a shallow embedding.
+}
+
+\spart{
+Add a new operation requires only the definition of a new function.
+}
+
+\qpart{
+Discuss the advantages gained by using type classes for a shallow embedding.
+}
+
+\spart{
+Type classes allows you to define a different instance of each semantics, rather than only have one semantics or using tuples.
+}
+
+\qpart{
+Discuss the advantages gained by using smart constructors for a deep embedding.
+}
+
+\spart{
+A smart constructor allows you to add new operations without having to redefined existing ones, as it is defined in terms of existing operations.
+}
+
+\question{Reinterpretting Graphs}{
+The graph language can be used to construct a graph that is interpreted traditionally either as an adjacency
+list or as an adjacency matrix.
+}
+
+\qpart{
+Write a function $lists :: Graph \to Map\ Int\ [Int]$ that realises the deep \textit{Graph} DSL as a traditional
+adjacency list implementation.
+}
+
+\codesol
+\ifsolutions
+\begin{code}
+lists :: Graph -> Map Int [Int]
+lists Empty = Map.empty
+lists (Vertex n) = Map.singleton n []
+lists (Overlay g1 g2) = Map.union (lists g1) (lists g2)
+lists (Connect g1 g2) = Map.map (nub) (Map.union (Map.map (++ (Map.keys (lists g2))) (lists g1)) (lists g2))
+\end{code}
+\fi
+
+\qpart{
+Write a new typeclass instance for \textit{Graphy} that realises the shallow \textit{Graph} DSL as a traditional adjacency
+list implementation.
+}
+
+\codesol
+\ifsolutions
+\begin{code}
+TODO
+\end{code}
+\fi
+
+\qpart{
+Discuss why it is harder to write the interpretation using the shallow embedding rather than the deep
+embedding.
+}
+
+\spart{
+TODO
+}
+
+\qpart{
+Write a function $mat :: Graph \to MatGraph$ that realises the \textit{Graph} DSL as a traditional adjacency
+matrix implementation (you can define the datatype \textit{MatGraph} however you want).
+}
+
+\codesol
+\ifsolutions
+\begin{code}
+type MatGraph = ([Int], [[Int]])
+
+-- Treates dupes as seperate vertices
+mat :: Graph -> MatGraph
+mat Empty = ([], [])
+mat (Vertex n) = ([n], [[0]])
+mat (Overlay g1 g2) = (v1++v2, (overlay' (length e1) e1 (length e2) e2))
+  where
+    v1 = fst (mat g1)
+    v2 = fst (mat g2)
+    e1 = snd (mat g1)
+    e2 = snd (mat g2)
+mat (Connect g1 g2) = (v1++v2, connect' (length e1) e1 (length e2) e2)
+  where
+    v1 = fst (mat g1)
+    v2 = fst (mat g2)
+    e1 = snd (mat g1)
+    e2 = snd (mat g2)
+
+-- Pads edges with zeroes
+--          len(e1)   e1     len(e2)    e2          out
+overlay' :: Int -> [[Int]] -> Int -> [[Int]] -> [[Int]]
+overlay' _ [] _ [] = []
+overlay' n [] m (y:ys) = ((zeroes n)++y) : (overlay' n [] m ys)
+overlay' n (x:xs) m ys = (x++(zeroes m)) : (overlay' n xs m ys)
+
+-- Creates list of n zeroes
+zeroes :: Int -> [Int]
+zeroes 0 = []
+zeroes n = 0:(zeroes (n-1))
+
+-- pads edges with 1s
+connect' :: Int -> [[Int]] -> Int -> [[Int]] -> [[Int]]
+connect' _ [] _ [] = []
+connect' n [] m (y:ys) = ((zeroes n)++y) : (overlay' n [] m ys)
+connect' n (x:xs) m ys = (x++(ones m)) : (overlay' n xs m ys)
+
+-- creates list of n ones
+ones :: Int -> [Int]
+ones 0 = []
+ones n = 1:(ones (n-1))
+\end{code}
+\fi
+
+\end{document}
